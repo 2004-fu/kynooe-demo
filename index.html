@@ -1,0 +1,586 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+<meta name="theme-color" content="#171b20" />
+<title>Kynooe Vision · 手势轨迹控制 Demo</title>
+<meta name="description" content="Kynooe 模块化机械臂 AR 轨迹规划交互演示。长按创建节点，滑动绘制机械臂运动轨迹，为节点配置夹取、释放、推拉等动作。" />
+<style>
+:root{color-scheme:dark;--bg:#12171d;--panel:rgba(20,24,30,.95);--panel2:#242b34;--stroke:rgba(230,236,243,.15);--text:#f8f9fa;--muted:#a3adb7;--orange:#f18b45;--softorange:#ffd8b8;--green:#79d5ae;--ease:cubic-bezier(.2,.8,.15,1)}
+*{box-sizing:border-box}html,body{height:100%;margin:0;overflow:hidden;font-family:Inter,"SF Pro Display","Noto Sans SC","Microsoft YaHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#15191d;color:var(--text)}button,input{font:inherit}button{cursor:pointer} .viewport{user-select:none;-webkit-user-select:none}button:focus-visible,input:focus-visible{outline:2px solid #f8a064;outline-offset:3px}.app,.viewport{position:relative;width:100%;height:100%;min-height:530px;overflow:hidden}.viewport{background:#8e928e}.scene-art{position:absolute;inset:0;width:100%;height:100%;z-index:2;pointer-events:none}.real-camera{display:none;position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1;transform:scaleX(-1)}.camera-on .real-camera{display:block}.camera-on #simulatedRoom{opacity:0}.camera-on #robot{opacity:.52}.camera-on #looseTissue{opacity:0}.camera-grad{position:absolute;z-index:3;inset:0;pointer-events:none;background:linear-gradient(180deg,rgba(11,15,20,.38) 0%,transparent 21%,transparent 65%,rgba(8,11,15,.62) 100%),linear-gradient(90deg,rgba(8,10,13,.16),transparent 19%,transparent 80%,rgba(6,9,14,.13))}.framing{position:absolute;inset:16% 13% 22%;z-index:4;pointer-events:none}.framing i{position:absolute;width:23px;height:23px;border-color:rgba(255,255,255,.52);border-style:solid}.framing i:nth-child(1){top:0;left:0;border-width:1px 0 0 1px}.framing i:nth-child(2){top:0;right:0;border-width:1px 1px 0 0}.framing i:nth-child(3){bottom:0;left:0;border-width:0 0 1px 1px}.framing i:nth-child(4){bottom:0;right:0;border-width:0 1px 1px 0}.draw-surface{position:absolute;inset:0;z-index:8;touch-action:none;cursor:crosshair}.draw-surface.drawing{cursor:grabbing}.node-hit-layer{position:absolute;inset:0;z-index:10;pointer-events:none}.node-hit{position:absolute;transform:translate(-50%,-50%);width:43px;height:43px;padding:0;border:1px solid rgba(255,255,255,.88);border-radius:50%;background:rgba(22,24,27,.78);box-shadow:0 0 0 7px rgba(242,143,72,.14),0 10px 24px rgba(0,0,0,.28);color:#fff;font-size:12px;font-weight:800;pointer-events:auto;display:flex;align-items:center;justify-content:center;transition:transform .2s,background .2s}.node-hit:hover,.node-hit.selected{background:#f38d47;color:#191e24;transform:translate(-50%,-50%) scale(1.12)}.node-hit.has-action{border-color:#ff9a4f}.node-hit small{position:absolute;top:46px;left:50%;white-space:nowrap;transform:translateX(-50%);padding:4px 8px;border-radius:5px;background:rgba(17,21,26,.85);font-weight:600;font-size:10px;color:#ffe6d1}.target-ghost{z-index:11;position:absolute;pointer-events:none;transform:translate(-50%,-50%);width:76px;height:76px;display:grid;place-items:center}.target-ghost[hidden]{display:none}.target-halo{position:absolute;inset:3px;border:1px dashed #ff9b4b;border-radius:50%;animation:spin 8s linear infinite;box-shadow:0 0 28px rgba(243,141,71,.19)}.target-center{font-weight:200;font-size:29px;color:#ffd9b6;text-shadow:0 0 12px #e77522}.target-ghost small{position:absolute;top:85%;white-space:nowrap;background:rgba(19,23,28,.87);border-radius:6px;color:#ffe4c9;padding:3px 7px;font-size:10px}@keyframes spin{to{transform:rotate(360deg)}}
+.topbar{position:absolute;top:0;left:0;right:0;z-index:20;height:60px;padding:0 clamp(16px,2.3vw,38px);display:flex;align-items:center;justify-content:space-between;gap:16px;background:linear-gradient(180deg,rgba(15,20,25,.84),rgba(20,25,31,.36));border-bottom:1px solid rgba(255,255,255,.11);backdrop-filter:blur(12px)}.brand,.top-actions,.top-mid{display:flex;align-items:center}.brand{gap:9px;white-space:nowrap}.brand-mark{font-size:24px;line-height:1;font-weight:1000;letter-spacing:-5px;transform:skew(-6deg);margin-right:2px}.brand strong{font-size:22px;letter-spacing:-1.3px}.bar-separator{height:23px;border-left:1px solid #73787c;margin:0 10px}.brand-sub{font-size:10px;letter-spacing:2.2px;font-weight:800;color:#bdc4cc}.top-mid{gap:9px;padding:9px 15px;border:1px solid rgba(255,255,255,.12);background:rgba(8,13,17,.28);border-radius:22px;font-size:11px;color:#e0e7ea}.online-dot,.rec-dot{width:7px;height:7px;background:#69d4a1;border-radius:50%;box-shadow:0 0 12px rgba(87,226,158,.85);flex-shrink:0}.dot-divider{opacity:.4}.top-actions{gap:10px}.top-control{border:1px solid rgba(255,255,255,.13);background:rgba(255,255,255,.075);color:#f3f4f6;border-radius:8px;padding:8px 10px;font-size:11px;font-weight:600;display:flex;gap:8px;align-items:center}.top-control:hover{border-color:rgba(255,255,255,.38);background:rgba(255,255,255,.14)}.symbol{font-size:15px}.signal-icon{margin-left:6px;font-size:24px}.ready-tag{font-size:10px;color:#93e7b4;font-weight:700;padding:7px 9px;border:1px solid rgba(113,220,160,.49);border-radius:5px;background:rgba(39,114,75,.16)}
+.scene-marker{z-index:6;position:absolute;display:grid;grid-template-columns:6px auto;column-gap:7px;pointer-events:none;padding:8px 10px 8px 9px;border:1px solid rgba(255,255,255,.15);border-radius:9px;background:rgba(18,22,26,.78);backdrop-filter:blur(9px);box-shadow:0 7px 20px rgba(0,0,0,.19);font-size:10px;line-height:1.25;transition:opacity .3s}.scene-marker strong{font-size:9px;letter-spacing:1.3px}.scene-marker small{grid-column:2;color:#c0c8cd;margin-top:3px}.ping{width:6px;height:6px;border-radius:100%;background:#ff993e;margin-top:3px;box-shadow:0 0 8px #ffa251}.ping.subtle{background:#f3f4f4;box-shadow:none}.marker-tool{top:27%;left:56%}.marker-object{top:69%;left:43%}.scene-type{z-index:7;position:absolute;bottom:113px;left:50%;transform:translateX(-50%);white-space:nowrap;display:flex;align-items:center;gap:8px;font-size:10px;color:#f3f3f2;font-weight:750;letter-spacing:1px;text-shadow:0 1px 5px #222}.scene-type .rec-dot{background:#fa933e;box-shadow:0 0 9px #fa933e}.scene-type .sep{opacity:.55}.corner-instruction{z-index:7;position:absolute;left:50%;top:91px;transform:translateX(-50%);pointer-events:none;border:1px solid rgba(255,255,255,.17);border-radius:12px;display:flex;gap:10px;align-items:center;padding:10px 17px;background:rgba(16,20,24,.46);backdrop-filter:blur(10px);text-align:center;font-size:11px;line-height:1.5;color:#e4ebed;box-shadow:0 10px 22px rgba(0,0,0,.07)}.corner-instruction b{font-size:11px;color:#ffbc83}.tiny-spark{color:#ff983c;font-size:26px}
+.drawer-handle{position:absolute;top:46%;z-index:22;height:159px;width:34px;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:7px;background:rgba(13,17,22,.79);color:#f6f7f8;border:1px solid rgba(255,255,255,.27);backdrop-filter:blur(12px);box-shadow:0 6px 25px rgba(0,0,0,.24);font-size:10px;transition:transform .4s var(--ease),background .2s}.drawer-handle:hover{background:rgba(31,37,45,.98)}.left-handle{left:0;border-radius:0 12px 12px 0;border-left:0}.right-handle{right:0;border-radius:12px 0 0 12px;border-right:0}.handle-copy{line-height:1.25;font-weight:700;letter-spacing:2px}.handle-icon{font-size:21px;color:#ff9a51}.handle-chevron{font-size:22px}.drawer{position:absolute;top:74px;bottom:112px;width:min(380px,calc(100vw - 34px));padding:23px;overflow-y:auto;z-index:30;background:linear-gradient(160deg,rgba(18,22,28,.985),rgba(27,33,41,.97));border:1px solid rgba(235,240,245,.16);box-shadow:0 13px 48px rgba(0,0,0,.46);transition:transform .43s var(--ease);scrollbar-width:thin;scrollbar-color:#555 #20242b}.drawer-left{left:0;border-radius:0 18px 18px 0;transform:translateX(calc(-100% - 2px))}.drawer-right{right:0;border-radius:18px 0 0 18px;transform:translateX(calc(100% + 2px))}.drawer.open{transform:translateX(0)}.drawer-backdrop{position:absolute;inset:0;z-index:24;display:none;background:rgba(9,12,16,.32);backdrop-filter:blur(1px)}.drawer-backdrop.show{display:block}.drawer-head{display:flex;justify-content:space-between;gap:20px;align-items:flex-start}.overline{font-size:10px;letter-spacing:1.3px;font-weight:800;color:#bac3cc;display:flex;align-items:center;gap:9px}.overline i{width:15px;border-top:2px solid var(--orange)}.drawer h2{font-size:29px;margin:15px 0 7px;letter-spacing:-.9px}.drawer p{font-size:12px;line-height:1.65;color:#a9b1bb;margin:0}.close-drawer,.guide-close{width:33px;height:33px;border-radius:9px;background:rgba(255,255,255,.08);color:#dde4e7;border:1px solid rgba(255,255,255,.18);font-size:22px}.close-drawer:hover,.guide-close:hover{background:rgba(255,255,255,.18)}.connected-card{display:flex;align-items:center;gap:10px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);padding:14px 12px;border-radius:11px;margin:27px 0}.connected-indicator{width:10px;height:10px;border-radius:50%;background:#72d5a7;box-shadow:0 0 15px #65cb9d}.connected-card div{display:flex;flex-direction:column;gap:5px;flex:1}.connected-card b{font-size:12px}.connected-card small{font-size:10px;color:#9faab4}.connected-text{font-size:10px;color:#77dfb0}.drawer-section-label{display:flex;justify-content:space-between;font-size:10px;font-weight:800;letter-spacing:1.1px;color:#9ba8b4;margin:22px 0 12px}.quick-item{display:flex;gap:13px;align-items:center;width:100%;padding:14px 10px;margin:9px 0;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.12);border-radius:11px;color:#f9f9fa;text-align:left}.quick-item:hover{border-color:rgba(241,139,69,.66);background:rgba(243,145,76,.1)}.quick-icon{display:grid;place-items:center;width:39px;height:39px;flex-shrink:0;background:rgba(255,255,255,.07);border-radius:50%;color:#ffc08d;font-size:22px}.quick-item span:nth-child(2){flex:1;display:flex;flex-direction:column;gap:5px}.quick-item b{font-size:13px}.quick-item small{font-size:10px;color:#adb7bf}.item-arrow{color:#f6af72;font-size:20px}.preset-card{width:100%;display:flex;align-items:center;gap:13px;text-align:left;padding:17px 12px;background:linear-gradient(90deg,rgba(225,114,38,.2),rgba(190,108,41,.05));border:1px solid rgba(239,138,70,.6);border-radius:12px;color:#fff}.preset-card>span:nth-child(2){display:flex;flex-direction:column;gap:5px;flex:1}.preset-card b{font-size:12px}.preset-card small{color:#ecc2a4;font-size:10px}.preset-stars{font-size:22px;color:#ff9f5b}.drawer-tip{margin-top:23px;font-size:11px;line-height:1.7;color:#87929b}.fine-grid{margin:15px 0 24px}.fine-label{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;font-size:12px;font-weight:600}.fine-label output{color:#f5a66b;font-variant-numeric:tabular-nums}.fine-grid input{width:100%;appearance:none;height:5px;background:linear-gradient(90deg,#ee8a3d,#414851);border-radius:10px;cursor:pointer}.fine-grid input::-webkit-slider-thumb{appearance:none;width:17px;height:17px;background:#fff;border:3px solid #f5944f;border-radius:50%}.fine-grid input::-moz-range-thumb{width:12px;height:12px;background:#fff;border:3px solid #f5944f;border-radius:50%}.draw-note{display:flex;gap:12px;align-items:flex-start;padding:13px;border:1px solid rgba(227,236,245,.17);border-radius:10px;background:rgba(255,255,255,.04);font-size:11px;color:#aeb9c3;line-height:1.65}.draw-note>span:first-child{display:grid;place-items:center;width:20px;height:20px;border:1px solid #74818a;border-radius:50%;flex-shrink:0;font-family:Georgia,serif;font-style:italic}.outline-btn{background:transparent;color:#eff1f3;border:1px solid rgba(255,255,255,.2);border-radius:9px;padding:12px;width:100%;margin-top:16px}.outline-btn:hover{background:rgba(255,255,255,.08)}
+.bottom-dock{z-index:16;position:absolute;left:50%;bottom:15px;transform:translateX(-50%);display:flex;align-items:center;gap:clamp(13px,2vw,35px);min-height:77px;width:min(1060px,calc(100% - 112px));padding:12px 14px 12px 17px;border:1px solid rgba(255,255,255,.22);border-radius:18px;background:rgba(16,20,25,.85);backdrop-filter:blur(19px);box-shadow:0 11px 46px rgba(0,0,0,.36)}.dock-heading{display:flex;gap:11px;align-items:center;flex:1;min-width:0}.dock-icon{width:40px;height:40px;border-radius:11px;background:rgba(249,148,83,.17);border:1px solid rgba(255,165,94,.28);color:#ffab6b;display:grid;place-items:center;font-size:26px}.dock-heading>div:nth-child(2){display:flex;flex-direction:column;gap:6px;min-width:0}.dock-heading b{font-size:13px;white-space:nowrap}.dock-heading small{font-size:10px;color:#b9c2c8;white-space:nowrap;text-overflow:ellipsis;overflow:hidden}.dock-stats{display:flex;align-items:center;gap:20px;flex-shrink:0}.dock-stats div{display:flex;flex-direction:column;gap:5px;border-left:1px solid rgba(255,255,255,.14);padding-left:16px}.dock-stats span{font-size:10px;color:#97a4ae}.dock-stats b{font-size:14px;font-variant-numeric:tabular-nums}.dock-buttons{display:flex;gap:8px;align-items:center}.dock-button{height:42px;padding:0 12px;border-radius:9px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.07);color:white;white-space:nowrap;font-size:12px;font-weight:700}.dock-button:hover:not(:disabled){background:rgba(255,255,255,.16)}.start-button{background:#f18b45;color:#172028;border-color:#f18b45;padding:0 19px}.start-button:hover:not(:disabled){background:#ffaf74}.start-button:disabled{opacity:.42;cursor:not-allowed}.stop-button{background:rgba(210,71,64,.22);border-color:#ba5a55;color:#ffd5d2}
+.node-menu{z-index:38;position:absolute;width:263px;padding:13px;background:rgba(22,26,33,.96);border:1px solid rgba(245,245,245,.25);border-radius:15px;box-shadow:0 20px 65px rgba(0,0,0,.52);backdrop-filter:blur(18px)}.node-menu[hidden]{display:none}.node-menu-head{display:flex;align-items:center;justify-content:space-between;font-size:11px;letter-spacing:1.5px;font-weight:850;color:#ffc99c}.node-menu-head button{border:0;background:transparent;color:#fff;font-size:20px}.node-menu-sub{font-size:10px;color:#b9c3cb;margin:9px 0 12px;line-height:1.5}.node-action-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:6px}.node-action-grid button{border:1px solid rgba(255,255,255,.16);border-radius:9px;background:rgba(255,255,255,.055);padding:9px 5px;display:flex;align-items:center;gap:7px;color:#f3f3f3;font-size:11px;text-align:left}.node-action-grid button span{font-size:18px;width:25px;color:#ffc196;text-align:center}.node-action-grid button:hover{background:rgba(246,144,71,.18);border-color:#ec8e4a}.node-action-grid button.selected{border-color:#ed955c;background:rgba(249,145,69,.23)}.node-action-grid button.action-skip{grid-column:span 2;justify-content:center}.node-menu p{font-size:9px;line-height:1.5;color:#929fa9;margin:10px 0 0}.mini-progress{position:absolute;z-index:17;bottom:114px;left:50%;transform:translateX(-50%);width:min(450px,80%);padding:12px 14px;background:rgba(17,21,27,.9);border:1px solid rgba(255,255,255,.2);border-radius:12px;backdrop-filter:blur(10px)}.mini-progress[hidden]{display:none}.progress-head{display:flex;justify-content:space-between;font-size:11px;color:#e0e3e5;margin-bottom:10px}.progress-track{height:5px;background:#3c4147;border-radius:8px;overflow:hidden}.progress-track div{height:100%;width:0;background:#f69b52;transition:width .15s}.toast{position:absolute;z-index:40;left:50%;bottom:126px;transform:translateX(-50%) translateY(15px);background:rgba(16,19,24,.92);border:1px solid rgba(245,245,245,.19);border-radius:8px;padding:10px 15px;color:#f8f6f4;font-size:12px;opacity:0;pointer-events:none;transition:.2s;white-space:nowrap}.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}.guide-dialog{position:absolute;inset:0;z-index:50;background:rgba(7,10,15,.65);backdrop-filter:blur(12px);display:grid;place-items:center;padding:20px}.guide-dialog[hidden]{display:none}.guide-card{position:relative;width:min(570px,100%);border:1px solid rgba(255,255,255,.17);border-radius:23px;background:linear-gradient(145deg,#252b32,#171b22);padding:32px;box-shadow:0 25px 85px #0008}.guide-close{position:absolute;right:25px;top:25px}.orange-text{color:#f6a265}.guide-card h2{font-size:29px;line-height:1.45;letter-spacing:-.5px;margin:17px 0 24px}.guide-steps{display:grid;grid-template-columns:1fr 1fr;gap:12px}.guide-steps>div{display:flex;gap:10px;padding:14px;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.07);border-radius:11px}.guide-steps>div>span{font-size:12px;color:#f5a062;font-weight:800}.guide-steps p{display:flex;flex-direction:column;gap:6px}.guide-steps b{font-size:12px}.guide-steps small{font-size:10px;color:#a6b1ba;line-height:1.6}.guide-foot{display:flex;align-items:center;gap:18px;justify-content:space-between;margin-top:25px}.guide-foot span{font-size:10px;color:#a0adb7;line-height:1.6}.guide-foot button{border:0;border-radius:9px;background:#f09147;color:#171a1d;font-size:12px;font-weight:850;white-space:nowrap;padding:12px 15px}
+@media(max-width:1200px){.top-mid{display:none}.bottom-dock{width:calc(100% - 94px);gap:12px}.dock-stats{gap:10px}.dock-stats div{padding-left:9px}.dock-heading small{max-width:200px}.scene-marker{font-size:9px}}
+@media(max-width:850px){.topbar{height:53px;padding:0 12px}.brand strong{font-size:18px}.brand-sub,.bar-separator,.signal-icon,.ready-tag{display:none}.top-control{padding:7px}.top-control span:nth-child(2){display:none}.corner-instruction{top:70px}.scene-marker{display:none}.bottom-dock{width:calc(100% - 24px);bottom:10px;gap:8px;padding:9px;border-radius:12px;flex-wrap:wrap}.dock-icon{display:none}.dock-heading{flex-basis:100%}.dock-stats{flex:1}.dock-buttons{flex:1;justify-content:flex-end}.dock-button{height:39px;padding:0 10px}.dock-button.subtle-button span{display:none}.drawer{top:60px;bottom:99px}.drawer-handle{height:115px;width:28px}.scene-type{bottom:137px;font-size:8px}.toast{bottom:173px}.mini-progress{bottom:174px}.node-menu{width:260px}.guide-steps{grid-template-columns:1fr}.guide-card{padding:24px}.guide-card h2{font-size:22px}}
+@media(max-height:650px){.corner-instruction{top:69px;padding:7px 10px}.drawer{top:65px;bottom:90px;padding:16px}.drawer h2{font-size:21px;margin:8px 0 5px}.drawer-section-label{margin:15px 0 8px}.bottom-dock{min-height:65px}.scene-type{bottom:94px}.guide-card{padding:17px}.guide-card h2{font-size:20px;margin:10px 0}.guide-steps>div{padding:9px}.guide-foot{margin-top:10px}}
+
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <main class="viewport" id="viewport" aria-label="机械臂摄像头视角与轨迹操作区">
+    <video class="real-camera" id="realCamera" autoplay playsinline muted></video>
+    <svg id="sceneSvg" class="scene-art" viewBox="0 0 1440 820" preserveAspectRatio="xMidYMid slice" role="img" aria-label="温暖的现代客厅，桌面上有 Kynooe 白色机械臂和纸巾盒">
+        <defs>
+          <linearGradient id="wall" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#a6aeb0"/><stop offset=".46" stop-color="#dededb"/><stop offset="1" stop-color="#aeb5b2"/></linearGradient>
+          <linearGradient id="windowGrad" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#e5e6dc"/><stop offset=".55" stop-color="#c3d0cb"/><stop offset="1" stop-color="#abbec2"/></linearGradient>
+          <linearGradient id="sofa" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#d0cec8"/><stop offset="1" stop-color="#a7aaa5"/></linearGradient>
+          <linearGradient id="table" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#bcafa1"/><stop offset=".48" stop-color="#a48d7c"/><stop offset="1" stop-color="#7f675b"/></linearGradient>
+          <linearGradient id="tableFront" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#806c62"/><stop offset="1" stop-color="#4b4440"/></linearGradient>
+          <linearGradient id="armWhite" x1="0" y1="0" x2=".88" y2="1"><stop stop-color="#ffffff"/><stop offset=".26" stop-color="#eeeff0"/><stop offset=".62" stop-color="#bbc3c8"/><stop offset=".84" stop-color="#ffffff"/><stop offset="1" stop-color="#8a949b"/></linearGradient>
+          <linearGradient id="jointMetal" x1="0" y1="0" x2=".95" y2="1"><stop stop-color="#fdfefe"/><stop offset=".56" stop-color="#b3bcc4"/><stop offset="1" stop-color="#6e7983"/></linearGradient>
+          <linearGradient id="baseMetal" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#eff2f3"/><stop offset=".65" stop-color="#bec6cc"/><stop offset="1" stop-color="#8f999e"/></linearGradient>
+          <linearGradient id="tissueBox" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#fffefa"/><stop offset="1" stop-color="#c3c8c7"/></linearGradient>
+          <linearGradient id="glassTint" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#111820" stop-opacity=".02"/><stop offset="1" stop-color="#050609" stop-opacity=".31"/></linearGradient>
+          <filter id="distantBlur"><feGaussianBlur stdDeviation="11"/></filter>
+          <filter id="smallBlur"><feGaussianBlur stdDeviation="3"/></filter>
+          <filter id="floorShadow"><feGaussianBlur stdDeviation="13"/></filter>
+          <filter id="robotShadow" x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="7" dy="12" stdDeviation="11" flood-color="#1a1713" flood-opacity=".43"/></filter>
+        </defs>
+        <g id="simulatedRoom">
+        <!-- Room: muted on purpose to make the machine and tracking overlays readable -->
+        <rect width="1440" height="820" fill="url(#wall)"/>
+        <g filter="url(#distantBlur)" opacity=".86">
+          <rect x="95" y="-65" width="420" height="500" fill="#faf8ee" opacity=".57"/>
+          <rect x="125" y="-25" width="325" height="440" rx="8" fill="url(#windowGrad)" stroke="#f6f4e9" stroke-width="25"/>
+          <path d="M290 -30 V420 M110 200 H460" stroke="#eeeae2" stroke-width="14"/>
+          <path d="M145 365 Q265 260 460 329 V415 H145" fill="#84948d" opacity=".47"/>
+          <rect x="555" y="212" width="500" height="25" rx="8" fill="#d4d0c7"/>
+          <rect x="595" y="183" width="90" height="29" rx="4" fill="#8f948f"/><rect x="716" y="145" width="85" height="67" rx="6" fill="#e6e1d4"/><rect x="832" y="166" width="112" height="46" rx="4" fill="#abb2a9"/>
+          <rect x="460" y="358" width="660" height="152" rx="64" fill="url(#sofa)"/>
+          <rect x="498" y="323" width="228" height="132" rx="42" fill="#ded8cf"/><rect x="755" y="325" width="275" height="130" rx="38" fill="#c6c4bd"/>
+          <rect x="1114" y="258" width="35" height="246" rx="9" fill="#857a72"/><ellipse cx="1134" cy="256" rx="95" ry="23" fill="#e9e2d6"/>
+          <rect x="1198" y="360" width="34" height="195" fill="#8a887a"/><ellipse cx="1220" cy="360" rx="61" ry="17" fill="#bbb2a5"/>
+          <path d="M1250 350 Q1285 180 1370 100" fill="none" stroke="#53624d" stroke-width="8"/>
+          <ellipse cx="1274" cy="269" rx="54" ry="17" fill="#61715c" transform="rotate(-31 1274 269)"/>
+          <ellipse cx="1320" cy="214" rx="61" ry="18" fill="#71816e" transform="rotate(-39 1320 214)"/>
+          <ellipse cx="1279" cy="166" rx="58" ry="18" fill="#81927b" transform="rotate(25 1279 166)"/>
+        </g>
+        <rect x="0" y="0" width="1440" height="820" fill="url(#glassTint)"/>
+        <!-- Table top -->
+        <path d="M105 560 L1400 553 L1502 781 L-90 781 Z" fill="url(#table)"/>
+        <path d="M-90 779 L1500 779 L1500 900 L-90 900 Z" fill="url(#tableFront)"/>
+        <g opacity=".13" stroke="#ffede0" fill="none" stroke-width="2">
+          <path d="M235 592 Q650 612 1350 589"/><path d="M165 641 Q730 668 1465 621"/><path d="M36 719 Q750 732 1462 693"/>
+        </g>
+        <ellipse cx="999" cy="666" rx="220" ry="32" fill="#302621" opacity=".38" filter="url(#floorShadow)"/>
+        <!-- Tissue box and paper -->
+        <g id="tissueObject" transform="translate(0 0)">
+          <ellipse cx="701" cy="632" rx="139" ry="23" fill="#433830" opacity=".34" filter="url(#smallBlur)"/>
+          <path d="M604 590 L739 583 L779 600 L639 611 Z" fill="#edf0ea"/>
+          <path d="M604 590 L640 607 L640 646 L602 628 Z" fill="#aab3b4"/>
+          <path d="M640 607 L779 600 L780 638 L640 646 Z" fill="url(#tissueBox)"/>
+          <path d="M668 597 Q695 591 716 595" stroke="#b1b2ad" stroke-width="4" stroke-linecap="round"/>
+          <path d="M690 592 Q669 573 680 544 Q695 556 700 573 Q718 544 730 555 Q734 571 713 594" fill="#ffffff" stroke="#d8dcda" stroke-width="2"/>
+          <rect x="657" y="622" width="65" height="4" rx="2" fill="#aab3b2" opacity=".37"/>
+          <text x="663" y="635" fill="#69716f" font-size="10" font-family="Arial,sans-serif" letter-spacing="2">TISSUE</text>
+        </g>
+        </g>
+        <!-- Movable single tissue: attached after pick -->
+        <g id="looseTissue" opacity="0" transform="translate(0 0)">
+          <path d="M-15 3 Q-23 -19 -8 -26 Q6 -31 4 -6 Q21 -24 24 -7 L18 16 Q7 10 -2 16 Z" fill="#fffffb" stroke="#cfd6d5" stroke-width="2"/>
+        </g>
+        <!-- Robot assembly drawn with separate articulated segments for real-time motion -->
+        <g id="robot" filter="url(#robotShadow)">
+          <ellipse cx="1030" cy="629" rx="102" ry="18" fill="#535e65" opacity=".52"/>
+          <rect x="964" y="565" width="132" height="57" rx="15" fill="url(#baseMetal)" stroke="#85929b" stroke-width="2"/>
+          <ellipse cx="1030" cy="567" rx="67" ry="15" fill="#eff3f4" stroke="#aab5bc" stroke-width="2"/>
+          <rect x="988" y="529" width="85" height="42" rx="15" fill="url(#armWhite)" stroke="#abb7bd" stroke-width="2"/>
+          <g id="armSegment1">
+            <line id="link1Dark" x1="1030" y1="547" x2="940" y2="414" stroke="#87939a" stroke-width="79" stroke-linecap="round"/>
+            <line id="link1White" x1="1030" y1="547" x2="940" y2="414" stroke="url(#armWhite)" stroke-width="71" stroke-linecap="round"/>
+            <line id="link1Highlight" x1="1030" y1="547" x2="940" y2="414" stroke="#ffffff" stroke-opacity=".42" stroke-width="5" stroke-linecap="round"/>
+            <circle id="shoulderRing" cx="1030" cy="547" r="44" fill="url(#jointMetal)" stroke="#ff8a31" stroke-width="3"/>
+            <circle cx="1030" cy="547" r="29" fill="url(#armWhite)" stroke="#a6b4ba" stroke-width="1.5"/>
+          </g>
+          <g id="armSegment2">
+            <line id="link2Dark" x1="940" y1="414" x2="820" y2="350" stroke="#87939a" stroke-width="72" stroke-linecap="round"/>
+            <line id="link2White" x1="940" y1="414" x2="820" y2="350" stroke="url(#armWhite)" stroke-width="64" stroke-linecap="round"/>
+            <line id="link2Highlight" x1="940" y1="414" x2="820" y2="350" stroke="#fff" stroke-opacity=".48" stroke-width="4" stroke-linecap="round"/>
+            <circle id="elbowRing" cx="940" cy="414" r="38" fill="url(#jointMetal)" stroke="#ed862f" stroke-width="3"/>
+            <circle id="elbowInner" cx="940" cy="414" r="25" fill="url(#armWhite)" stroke="#a4aeb5" stroke-width="1.5"/>
+          </g>
+          <g id="gripper" transform="translate(820 350) rotate(0)">
+            <rect x="-37" y="-22" width="64" height="44" rx="15" fill="url(#armWhite)" stroke="#a1aeb6" stroke-width="2"/>
+            <rect x="-52" y="-16" width="18" height="32" rx="4" fill="#e0e8e9" stroke="#99a6ac" stroke-width="2"/>
+            <g id="fingerTop" transform="translate(0 0) rotate(0 -49 -12)">
+              <path d="M-47 -17 L-78 -29 L-101 -14 L-95 -4 L-74 -17 L-51 -5 Z" fill="url(#armWhite)" stroke="#8d9ba3" stroke-width="2"/>
+            </g>
+            <g id="fingerBottom" transform="translate(0 0) rotate(0 -49 12)">
+              <path d="M-47 17 L-78 29 L-101 14 L-95 4 L-74 17 L-51 5 Z" fill="url(#armWhite)" stroke="#8d9ba3" stroke-width="2"/>
+            </g>
+            <circle cx="-33" cy="0" r="6" fill="#ff8a32"/>
+          </g>
+        </g>
+        <!-- Target visual halo; its position follows arm when connection active -->
+        <g id="armTarget" opacity=".0">
+          <circle id="targetCircle" cx="800" cy="350" r="75" fill="none" stroke="#ff8b3a" stroke-width="2" stroke-dasharray="5 13" opacity=".9"/>
+          <circle cx="800" cy="350" r="45" fill="none" stroke="#fff" opacity=".38" stroke-width="1"/>
+        </g>
+      <g id="routeSvgGroup" pointer-events="none">
+<path id="routeGlow" fill="none" stroke="#FF8A39" stroke-width="13" opacity=".10" stroke-linecap="round" stroke-linejoin="round"/>
+<path id="routePath" fill="none" stroke="#FF9A4D" stroke-width="3.8" stroke-linecap="round" stroke-linejoin="round"/>
+<path id="routeDraft" fill="none" stroke="#FFD6B2" stroke-width="2.2" stroke-linecap="round" stroke-dasharray="7 8" stroke-linejoin="round"/>
+<g id="waypointGroup" pointer-events="auto"></g>
+</g>
+</svg>
+    <div class="camera-grad"></div>
+    <div class="framing" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+    <div class="draw-surface" id="drawSurface" role="application" aria-label="按住鼠标左键并拖动绘制夹爪轨迹。停留超过设定时长可创建节点，松开后选择节点动作。"></div>
+    <div class="node-hit-layer" id="nodeHitLayer"></div>
+    <div class="target-ghost" id="targetGhost" hidden><span class="target-halo"></span><span class="target-center">+</span><small>目标预览</small></div>
+    <div class="scene-marker marker-tool" id="toolMarker"><span class="ping"></span><strong>GRIPPER · 02</strong><small>已识别 · 模拟跟踪</small></div>
+    <div class="scene-marker marker-object" id="tissueMarker"><span class="ping subtle"></span><strong>TISSUE 01</strong><small>桌面目标 · 演示物体</small></div>
+    <div class="scene-type" id="sceneType"><span class="rec-dot"></span><span id="sceneTypeText">模拟摄像头画面</span><span class="sep">/</span><span>HAND TRACK · CONCEPT</span></div>
+    <div class="corner-instruction" id="cornerInstruction"><span class="tiny-spark">✳</span><span>按住左键绘制轨迹<br/><b>停留生成动作节点</b></span></div>
+
+    <header class="topbar">
+      <div class="brand"><span class="brand-mark">K</span><strong>Kynooe</strong><span class="bar-separator"></span><span class="brand-sub">VISION CONTROL</span></div>
+      <div class="top-mid"><span class="online-dot"></span><span>已连接 Kynooe Arm</span><span class="dot-divider">·</span><span>夹爪模块就绪</span></div>
+      <div class="top-actions">
+        <button id="cameraSwitch" class="top-control" title="使用浏览器摄像头，轨迹和机械臂仍为模拟叠加"><span class="symbol">▣</span><span>真实摄像头</span></button>
+        <button id="guideBtn" class="top-control" title="打开使用说明"><span class="symbol">ⓘ</span><span>使用说明</span></button>
+        <span class="signal-icon" aria-hidden="true">ᛒ</span><span class="ready-tag">READY</span>
+      </div>
+    </header>
+
+    <button id="leftTab" class="drawer-handle left-handle" aria-expanded="false" aria-controls="quickDrawer" title="展开快捷操作"><span class="handle-icon">‹</span><span class="handle-copy">快<br/>捷<br/>操<br/>作</span><span class="handle-chevron">›</span></button>
+    <button id="rightTab" class="drawer-handle right-handle" aria-expanded="false" aria-controls="fineDrawer" title="展开精细控制"><span class="handle-chevron">‹</span><span class="handle-copy">精<br/>细<br/>控<br/>制</span><span class="handle-icon">›</span></button>
+    <div class="drawer-backdrop" id="drawerBackdrop"></div>
+
+    <aside id="quickDrawer" class="drawer drawer-left" aria-label="快捷操作侧边抽屉" aria-hidden="true">
+      <div class="drawer-head"><div><span class="overline"><i></i> QUICK ACTIONS</span><h2>快捷操作</h2><p>选择预设动作，或加载一个完整的轨迹示例。</p></div><button class="close-drawer" data-close-drawer aria-label="收起快捷操作">×</button></div>
+      <div class="connected-card"><span class="connected-indicator"></span><div><b>KYNOOE ARM</b><small>主设备已连接 · Gripper 02</small></div><span class="connected-text">READY</span></div>
+      <div class="drawer-section-label">QUICK COMMANDS</div>
+      <button class="quick-item" data-quick="open"><span class="quick-icon">⌁</span><span><b>打开夹爪</b><small>展开末端夹爪</small></span><span class="item-arrow">↗</span></button>
+      <button class="quick-item" data-quick="close"><span class="quick-icon">⌬</span><span><b>闭合夹爪</b><small>夹爪回到闭合状态</small></span><span class="item-arrow">↗</span></button>
+      <button class="quick-item" data-quick="home"><span class="quick-icon">⌖</span><span><b>返回初始位</b><small>让模型恢复初始姿态</small></span><span class="item-arrow">↗</span></button>
+      <div class="drawer-section-label">DEMO SEQUENCE</div>
+      <button id="presetBtn" class="preset-card"><span class="preset-stars">✦</span><span><b>加载「取纸巾」轨迹示例</b><small>自动生成路径与夹取 / 松开节点</small></span><span>→</span></button>
+      <div class="drawer-tip">左侧是快捷操作。主要的轨迹规划仍在摄像头画面上完成。</div>
+    </aside>
+
+    <aside id="fineDrawer" class="drawer drawer-right" aria-label="精细控制侧边抽屉" aria-hidden="true">
+      <div class="drawer-head"><div><span class="overline"><i></i> FINE TUNING</span><h2>精细控制</h2><p>调整画面中模拟末端目标、抓手开合与轨迹识别灵敏度。</p></div><button class="close-drawer" data-close-drawer aria-label="收起精细控制">×</button></div>
+      <div class="drawer-section-label">END EFFECTOR</div>
+      <div class="fine-grid"><div class="fine-label"><span>抓手张开程度</span><output id="apertureVal">68%</output></div><input id="apertureRange" type="range" min="0" max="100" step="1" value="68" /></div>
+      <div class="fine-grid"><div class="fine-label"><span>末端横向位置</span><output id="posXVal">50%</output></div><input id="posXRange" type="range" min="0" max="100" step="1" value="50" /></div>
+      <div class="fine-grid"><div class="fine-label"><span>末端纵向位置</span><output id="posYVal">45%</output></div><input id="posYRange" type="range" min="0" max="100" step="1" value="45" /></div>
+      <div class="drawer-section-label">PATH SETTINGS</div>
+      <div class="fine-grid"><div class="fine-label"><span>长按生成节点</span><output id="holdVal">650 ms</output></div><input id="holdRange" type="range" min="350" max="1200" step="50" value="650" /></div>
+      <div class="fine-grid"><div class="fine-label"><span>轨迹回放速度</span><output id="speedVal">1.0×</output></div><input id="speedRange" type="range" min="0.5" max="2.5" step="0.1" value="1" /></div>
+      <div class="draw-note"><span>i</span><span>所有数值仅控制网页模拟模型，不是实体机器人的真实运动参数或安全限位。</span></div>
+      <button id="resetFine" class="outline-btn">恢复精细设置默认值 ↻</button>
+    </aside>
+
+    <section class="bottom-dock" aria-label="轨迹编辑与执行">
+      <div class="dock-heading"><div class="dock-icon">⌁</div><div><b id="dockTitle">绘制机械臂运动轨迹</b><small id="dockSubtitle">按住左键拖动 · 停留 650ms 新增节点 · 松开选动作</small></div></div>
+      <div class="dock-stats"><div><span>轨迹</span><b id="distanceStat">0 px</b></div><div><span>节点</span><b id="nodeStat">00</b></div><div><span>已配置动作</span><b id="actionStat">00</b></div></div>
+      <div class="dock-buttons"><button id="undoBtn" class="dock-button subtle-button" title="撤销最后一个节点">↶ <span>撤销</span></button><button id="clearBtn" class="dock-button subtle-button" title="清空路径">× <span>清空</span></button><button id="playBtn" class="dock-button start-button" disabled><span id="playIcon">▶</span><span id="playLabel">执行轨迹</span></button><button id="stopBtn" class="dock-button stop-button" hidden>■ 停止</button></div>
+    </section>
+
+    <div class="node-menu" id="nodeMenu" hidden role="dialog" aria-label="选择动作节点指令">
+      <div class="node-menu-head"><span id="nodeMenuTitle">NODE 01</span><button id="nodeMenuClose" aria-label="关闭动作菜单">×</button></div>
+      <div class="node-menu-sub">选择夹爪到达该节点时执行的动作</div>
+      <div class="node-action-grid">
+        <button data-action="pick"><span>⌁</span><b>夹取</b></button>
+        <button data-action="release"><span>⌄</span><b>松开</b></button>
+        <button data-action="push"><span>→</span><b>推</b></button>
+        <button data-action="pull"><span>←</span><b>拉</b></button>
+        <button data-action="open"><span>⟪</span><b>打开夹爪</b></button>
+        <button data-action="close"><span>⟫</span><b>闭合夹爪</b></button>
+        <button data-action="pass" class="action-skip"><span>·</span><b>仅经过</b></button>
+      </div>
+      <p>点击轨迹上的任意编号节点，可重新设置动作。</p>
+    </div>
+
+    <div class="mini-progress" id="miniProgress" hidden><div class="progress-head"><span id="runStatus">正在执行轨迹</span><b id="progressText">0%</b></div><div class="progress-track"><div id="progressFill"></div></div></div>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <div class="guide-dialog" id="guideDialog" hidden role="dialog" aria-modal="true" aria-labelledby="guideTitle"><div class="guide-card"><button id="guideClose" class="guide-close">×</button><span class="overline orange-text">GESTURE PATH DEMO</span><h2 id="guideTitle">直接在摄像头画面上，<br/>规划机械臂的动作。</h2><div class="guide-steps"><div><span>01</span><p><b>按住左键并滑动</b><small>像在手机上用手指绘制抓手的移动轨迹。</small></p></div><div><span>02</span><p><b>停留约 0.65 秒</b><small>当前停留位置会自动成为一个可编辑的动作节点。</small></p></div><div><span>03</span><p><b>松开并选择动作</b><small>给节点设置夹取、松开、推、拉或夹爪开合。</small></p></div><div><span>04</span><p><b>执行整段轨迹</b><small>机器人模型沿路径运动，到节点时执行模拟指令。</small></p></div></div><div class="guide-foot"><span>模拟 Demo。未连接真实机器人，不会向实体硬件发送指令。</span><button id="guideGotIt">开始体验 →</button></div></div></div>
+  </main>
+</div>
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const app = $('app'), viewport = $('viewport'), sceneSvg = $('sceneSvg');
+  function adaptSceneForDevice(){
+    const portraitPhone=window.matchMedia('(max-width: 600px) and (orientation: portrait)').matches;
+    sceneSvg.setAttribute('viewBox',portraitPhone?'480 -180 740 1190':'0 0 1440 820');
+  }
+  adaptSceneForDevice();
+  const drawSurface = $('drawSurface');
+  const pathEl = $('routePath'), pathGlow = $('routeGlow'), draftEl = $('routeDraft');
+  const nodeHitLayer = $('nodeHitLayer'), menu = $('nodeMenu'), ghost = $('targetGhost');
+  const hoverTargets = {tool:$('toolMarker'),tissue:$('tissueMarker')};
+  const INITIAL = {x:727,y:347};
+  const state = {
+    points:[], nodes:[], pointerDown:false, pointerId:null, edgeGesture:null,
+    lastPt:null, anchor:null, lastMoveAt:0, dwellCreated:false, dwellTimer:null,
+    holdMs:650, speed:1, aperture:68, currentTip:{...INITIAL},
+    drawer:null, selectedNode:null, playing:false, token:0, cameraStream:null,
+    tissueHeld:false, releasedTissue:null, tissueShift:0, progress:0, toastTimer:null
+  };
+  const actionLabels = {pick:'夹取',release:'松开',push:'推',pull:'拉',open:'打开夹爪',close:'闭合夹爪',pass:'仅经过'};
+  const actionGlyphs = {pick:'⌁',release:'⌄',push:'→',pull:'←',open:'⟪',close:'⟫',pass:'·'};
+  const dist = (a,b) => Math.hypot(a.x-b.x,a.y-b.y);
+  const clamp = (n,min,max) => Math.max(min,Math.min(max,n));
+  const point = (x,y) => ({x:Math.round(x*10)/10,y:Math.round(y*10)/10});
+  const svgElement = (tag, attrs={}) => {const e=document.createElementNS('http://www.w3.org/2000/svg',tag);for(const [k,v] of Object.entries(attrs))e.setAttribute(k,v);return e;};
+  let viewportRect = () => viewport.getBoundingClientRect();
+  function toScene(clientX,clientY){
+    const svgPt = sceneSvg.createSVGPoint();svgPt.x=clientX;svgPt.y=clientY;
+    const matrix=sceneSvg.getScreenCTM();
+    if(!matrix)return point(700,420);
+    const p=svgPt.matrixTransform(matrix.inverse());
+    return point(clamp(p.x,0,1440),clamp(p.y,0,820));
+  }
+  function toScreen(p){
+    const matrix=sceneSvg.getScreenCTM();
+    if(!matrix)return {x:0,y:0};
+    const converted=sceneSvg.createSVGPoint();converted.x=p.x;converted.y=p.y;
+    const v=converted.matrixTransform(matrix),rect=viewportRect();
+    return {x:v.x-rect.left,y:v.y-rect.top};
+  }
+  function toast(message){
+    const el=$('toast');el.textContent=message;el.classList.add('show');
+    clearTimeout(state.toastTimer);state.toastTimer=setTimeout(()=>el.classList.remove('show'),2600);
+  }
+  function updateRoute(){
+    const pts=state.points;
+    const d=pts.length?'M'+pts.map(p=>`${p.x} ${p.y}`).join(' L') : '';
+    pathEl.setAttribute('d',d);pathGlow.setAttribute('d',d);
+    let len=0;for(let i=1;i<pts.length;i++)len+=dist(pts[i],pts[i-1]);
+    $('distanceStat').textContent=Math.round(len)+' px';
+    $('nodeStat').textContent=String(state.nodes.length).padStart(2,'0');
+    $('actionStat').textContent=String(state.nodes.filter(n=>n.action!=='pass').length).padStart(2,'0');
+    $('playBtn').disabled=state.playing||pts.length<2;
+    $('dockTitle').textContent=state.playing?'机械臂正在执行轨迹':pts.length?'轨迹已规划 · 可以配置节点':'绘制机械臂运动轨迹';
+    $('dockSubtitle').textContent=state.playing?'运行过程中可以随时停止模拟动画':pts.length?'点击编号节点修改动作，或继续拖动扩展轨迹':`按住左键拖动 · 停留 ${state.holdMs}ms 新增节点 · 松开选动作`;
+    renderNodes();
+  }
+  function renderNodes(){
+    const layer=$('waypointGroup');layer.innerHTML='';nodeHitLayer.innerHTML='';
+    state.nodes.forEach((n,index)=>{
+      const r=svgElement('circle',{cx:n.x,cy:n.y,r:24,fill:'#f48f41','fill-opacity':'.09',stroke:'#f58d43','stroke-opacity':'.4','stroke-width':1});
+      const core=svgElement('circle',{cx:n.x,cy:n.y,r:6,fill:'#fff',stroke:'#f58d43','stroke-width':2});
+      layer.append(r,core);
+      const btn=document.createElement('button');
+      btn.type='button';btn.className='node-hit'+(n.action!=='pass'?' has-action':'')+(n.id===state.selectedNode?' selected':'');
+      btn.setAttribute('aria-label',`节点 ${index+1}，${actionLabels[n.action]}。点击修改操作`);
+      btn.style.left=toScreen(n).x+'px';btn.style.top=toScreen(n).y+'px';
+      btn.innerHTML=`<span>${String(index+1).padStart(2,'0')}</span>${n.action!=='pass'?`<small>${actionGlyphs[n.action]} ${actionLabels[n.action]}</small>`:''}`;
+      btn.addEventListener('pointerdown',e=>e.stopPropagation());
+      btn.addEventListener('click',e=>{e.stopPropagation();if(!state.playing)openNodeMenu(n.id);});
+      nodeHitLayer.appendChild(btn);
+    });
+  }
+  function getLastNode(){return state.nodes.length?state.nodes[state.nodes.length-1]:null;}
+  let uniqueId=1;
+  function addNode(p,index,reason='dwell'){
+    const last=getLastNode();
+    if(last && dist(last,p)<19)return last;
+    const n={id:uniqueId++,x:p.x,y:p.y,index,action:'pass',reason};
+    state.nodes.push(n);
+    updateRoute();
+    return n;
+  }
+  function setGhost(p,visible=true){
+    if(!visible){ghost.hidden=true;return;}
+    const pos=toScreen(p);ghost.hidden=false;ghost.style.left=pos.x+'px';ghost.style.top=pos.y+'px';
+  }
+  function startDwellTimer(){
+    clearInterval(state.dwellTimer);
+    state.dwellTimer=setInterval(()=>{
+      if(!state.pointerDown || state.edgeGesture || state.playing || !state.lastPt || state.dwellCreated)return;
+      if(Date.now()-state.lastMoveAt >= state.holdMs){
+        const n=addNode(state.lastPt,state.points.length-1,'hold');
+        state.dwellCreated=true;
+        if(n)toast(`已添加节点 ${String(state.nodes.indexOf(n)+1).padStart(2,'0')} · 松开后可设置动作`);
+      }
+    },40);
+  }
+  function stopDwellTimer(){clearInterval(state.dwellTimer);state.dwellTimer=null;}
+  function pushPoint(p){
+    const last=state.points[state.points.length-1];
+    if(!last || dist(last,p)>2.4){state.points.push(p);}
+    state.lastPt=p;
+    if(!state.anchor || dist(state.anchor,p)>11){state.anchor=p;state.lastMoveAt=Date.now();state.dwellCreated=false;}
+    setGhost(p);
+    updateRoute();
+  }
+  function openNodeMenu(id){
+    const n=state.nodes.find(x=>x.id===id);if(!n)return;
+    state.selectedNode=id;
+    $('nodeMenuTitle').textContent=`NODE ${String(state.nodes.indexOf(n)+1).padStart(2,'0')} · ${n.reason==='hold'?'停留节点':'路径节点'}`;
+    for(const b of menu.querySelectorAll('[data-action]'))b.classList.toggle('selected',b.dataset.action===n.action);
+    const rect=viewportRect(),pos=toScreen(n);
+    const width=263,height=285;
+    const left=clamp(pos.x+26,12,rect.width-width-12);
+    const top=clamp(pos.y-height/2,65,rect.height-height-110);
+    menu.style.left=left+'px';menu.style.top=top+'px';menu.hidden=false;
+    updateRoute();
+  }
+  function closeNodeMenu(){menu.hidden=true;state.selectedNode=null;updateRoute();}
+  function startDraw(e){
+    if(e.button!==undefined&&e.button!==0)return;
+    if(state.playing)return;
+    if(state.drawer){closeDrawer();return;}
+    const r=viewportRect(),edgeX=e.clientX-r.left;
+    if(edgeX<28 || edgeX>r.width-28){
+      state.edgeGesture={side:edgeX<28?'left':'right',x:e.clientX,y:e.clientY,id:e.pointerId};
+      state.pointerId=e.pointerId;drawSurface.setPointerCapture(e.pointerId);return;
+    }
+    if(!menu.hidden)closeNodeMenu();
+    const p=toScene(e.clientX,e.clientY);
+    state.pointerDown=true;state.pointerId=e.pointerId;state.anchor=p;state.lastPt=p;
+    state.lastMoveAt=Date.now();state.dwellCreated=false;
+    if(!state.points.length){state.points.push(p);addNode(p,0,'start');}
+    else {
+      // Connection from the previous endpoint is part of the same journey.
+      const prev=state.points[state.points.length-1];
+      for(let i=1;i<=10;i++){const t=i/10;state.points.push(point(prev.x+(p.x-prev.x)*t,prev.y+(p.y-prev.y)*t));}
+    }
+    pushPoint(p);drawSurface.setPointerCapture(e.pointerId);drawSurface.classList.add('drawing');
+    $('cornerInstruction').style.opacity='.18';startDwellTimer();
+    e.preventDefault();
+  }
+  function moveDraw(e){
+    if(state.edgeGesture && e.pointerId===state.pointerId){
+      const dx=e.clientX-state.edgeGesture.x,side=state.edgeGesture.side;
+      if((side==='left'&&dx>65)||(side==='right'&&dx< -65)){openDrawer(side);state.edgeGesture=null;state.pointerId=null;}
+      return;
+    }
+    if(!state.pointerDown||e.pointerId!==state.pointerId)return;
+    pushPoint(toScene(e.clientX,e.clientY));
+    e.preventDefault();
+  }
+  function endDraw(e){
+    if(state.edgeGesture){state.edgeGesture=null;state.pointerId=null;return;}
+    if(!state.pointerDown||e.pointerId!==state.pointerId)return;
+    state.pointerDown=false;state.pointerId=null;stopDwellTimer();drawSurface.classList.remove('drawing');
+    $('cornerInstruction').style.opacity='1';setGhost(null,false);
+    if(e.type!=='pointercancel')pushPoint(toScene(e.clientX,e.clientY));
+    const p=state.lastPt||state.points[state.points.length-1];
+    let n=getLastNode();
+    if(!n || dist(n,p)>22)n=addNode(p,state.points.length-1,'end');
+    if(n)openNodeMenu(n.id);
+    updateRoute();
+    e.preventDefault();
+  }
+  drawSurface.addEventListener('pointerdown',startDraw);
+  drawSurface.addEventListener('pointermove',moveDraw);
+  drawSurface.addEventListener('pointerup',endDraw);
+  drawSurface.addEventListener('pointercancel',endDraw);
+  drawSurface.addEventListener('contextmenu',e=>e.preventDefault());
+  $('nodeMenuClose').addEventListener('click',closeNodeMenu);
+  menu.addEventListener('click',e=>{
+    const btn=e.target.closest('[data-action]');if(!btn||state.selectedNode===null)return;
+    const n=state.nodes.find(x=>x.id===state.selectedNode);if(!n)return;
+    n.action=btn.dataset.action;
+    toast(`节点 ${state.nodes.indexOf(n)+1} 已设置：${actionLabels[n.action]}`);
+    closeNodeMenu();
+  });
+  function undo(){
+    if(state.playing)return;
+    if(!state.nodes.length){toast('还没有可撤销的节点');return;}
+    if(state.nodes.length===1){clearRoute(false);return;}
+    const target=state.nodes[state.nodes.length-2];
+    state.nodes.pop();state.points=state.points.slice(0,target.index+1);
+    state.lastPt=state.points[state.points.length-1];closeNodeMenu();updateRoute();toast('已撤销最后一个节点及后续轨迹');
+  }
+  function clearRoute(showToast=true){
+    if(state.playing)stopPlayback();
+    state.points=[];state.nodes=[];state.selectedNode=null;state.lastPt=null;state.tissueHeld=false;state.releasedTissue=null;state.tissueShift=0;
+    $('tissueObject').setAttribute('transform','translate(0 0)');$('looseTissue').setAttribute('opacity','0');
+    closeNodeMenu();setGhost(null,false);setArmTip(INITIAL);updateRoute();
+    if(showToast)toast('轨迹与节点已清空');
+  }
+  $('undoBtn').addEventListener('click',undo);$('clearBtn').addEventListener('click',()=>clearRoute());
+  function setAttr(id,attrs){const el=$(id);if(!el)return;for(const [k,v] of Object.entries(attrs))el.setAttribute(k,String(v));}
+  function setArmTip(target){
+    if(!target)return;
+    const shoulder={x:1030,y:547},tip={x:target.x,y:target.y};
+    // The sketch specifies the gripper-tip position; the wrist is offset from it.
+    const wristDesired={x:tip.x+91,y:tip.y};
+    const L1=193,L2=217;
+    const vx=wristDesired.x-shoulder.x,vy=wristDesired.y-shoulder.y;
+    let d=Math.hypot(vx,vy),angle=Math.atan2(vy,vx);
+    d=clamp(d,40,L1+L2-6);
+    const wr={x:shoulder.x+Math.cos(angle)*d,y:shoulder.y+Math.sin(angle)*d};
+    const alpha=Math.acos(clamp((L1*L1+d*d-L2*L2)/(2*L1*d),-1,1));
+    const joint={x:shoulder.x+Math.cos(angle+alpha)*L1,y:shoulder.y+Math.sin(angle+alpha)*L1};
+    // Keep the end effector horizontal so the visible fingertip stays aligned with the drawn 2D target.
+    const wristAngle=0;
+    ['link1Dark','link1White','link1Highlight'].forEach(id=>setAttr(id,{x1:shoulder.x,y1:shoulder.y,x2:joint.x,y2:joint.y}));
+    ['link2Dark','link2White','link2Highlight'].forEach(id=>setAttr(id,{x1:joint.x,y1:joint.y,x2:wr.x,y2:wr.y}));
+    ['elbowRing','elbowInner'].forEach(id=>setAttr(id,{cx:joint.x,cy:joint.y}));
+    setAttr('gripper',{transform:`translate(${wr.x} ${wr.y}) rotate(${wristAngle})`});
+    state.currentTip=point(wr.x-91,wr.y);
+    const fingers=state.aperture/100;
+    setAttr('fingerTop',{transform:`translate(0 0) rotate(${-fingers*18} -49 -12)`});
+    setAttr('fingerBottom',{transform:`translate(0 0) rotate(${fingers*18} -49 12)`});
+    if(state.tissueHeld){$('looseTissue').setAttribute('opacity','1');$('looseTissue').setAttribute('transform',`translate(${state.currentTip.x} ${state.currentTip.y})`);}
+    else if(state.releasedTissue){$('looseTissue').setAttribute('opacity','1');$('looseTissue').setAttribute('transform',`translate(${state.releasedTissue.x} ${state.releasedTissue.y})`);}
+  }
+  function setAperture(v){state.aperture=clamp(Number(v),0,100);$('apertureRange').value=state.aperture;$('apertureVal').textContent=`${state.aperture}%`;setArmTip(state.currentTip);}
+  function setRunStatus(status,progress){$('runStatus').textContent=status;$('progressText').textContent=Math.round(progress*100)+'%';$('progressFill').style.width=(100*progress)+'%';}
+  const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+  async function motionBetween(a,b,startFrac,totalFrac,token){
+    const pts=state.points.slice(a,b+1);
+    if(!pts.length)return;
+    const lengths=[0];for(let i=1;i<pts.length;i++)lengths.push(lengths[i-1]+dist(pts[i],pts[i-1]));
+    const total=lengths[lengths.length-1];
+    const duration=Math.max(130,total/(185*state.speed)*1000);
+    return new Promise(resolve=>{
+      const started=performance.now();
+      const frame=now=>{
+        if(token!==state.token||!state.playing){resolve();return;}
+        const frac=clamp((now-started)/duration,0,1),traveled=frac*total;
+        let idx=1;while(idx<lengths.length-1&&lengths[idx]<traveled)idx++;
+        const prev=lengths[idx-1]??0,next=lengths[idx]??total;
+        const t=next>prev?(traveled-prev)/(next-prev):0;
+        const from=pts[idx-1]||pts[0],to=pts[idx]||pts[pts.length-1];
+        const p=point(from.x+(to.x-from.x)*t,from.y+(to.y-from.y)*t);
+        setArmTip(p);state.progress=startFrac+(totalFrac-startFrac)*frac;setRunStatus('沿轨迹移动至下个节点',state.progress);
+        if(frac<1)requestAnimationFrame(frame);else resolve();
+      };
+      requestAnimationFrame(frame);
+    });
+  }
+  async function doNodeAction(node,token){
+    if(!state.playing||token!==state.token)return;
+    const action=node.action;
+    if(action==='pass'){setRunStatus(`经过节点 ${state.nodes.indexOf(node)+1}`,state.progress);await wait(120);return;}
+    setRunStatus(`节点 ${state.nodes.indexOf(node)+1}：${actionLabels[action]}`,state.progress);
+    switch(action){
+      case 'pick':{
+        setAperture(8);
+        if(dist(node,{x:698,y:559})<125){state.tissueHeld=true;state.releasedTissue=null;toast('模拟：夹爪已抓取纸巾');}
+        else {toast('模拟夹取已执行；当前节点未靠近纸巾目标');}
+        break;
+      }
+      case 'release':{
+        if(state.tissueHeld){state.releasedTissue={...state.currentTip};state.tissueHeld=false;}
+        setAperture(82);toast('已执行松开指令');break;
+      }
+      case 'open':setAperture(95);toast('夹爪已打开');break;
+      case 'close':setAperture(4);toast('夹爪已闭合');break;
+      case 'push':state.tissueShift+=36;$('tissueObject').setAttribute('transform',`translate(${state.tissueShift} 0)`);toast('模拟推的动作反馈');break;
+      case 'pull':state.tissueShift-=36;$('tissueObject').setAttribute('transform',`translate(${state.tissueShift} 0)`);toast('模拟拉的动作反馈');break;
+    }
+    await wait(690);
+  }
+  async function play(){
+    if(state.playing||state.points.length<2)return;
+    closeNodeMenu();closeDrawer();state.playing=true;state.token++;
+    const token=state.token;
+    $('playBtn').hidden=true;$('stopBtn').hidden=false;$('miniProgress').hidden=false;
+    $('cornerInstruction').style.opacity='0';
+    const nodes=[...state.nodes].sort((a,b)=>a.index-b.index);
+    const steps=nodes.length?nodes:[{index:state.points.length-1,action:'pass',id:-1}];
+    const maxIdx=Math.max(1,state.points.length-1);
+    let lastIdx=0;
+    setArmTip(state.points[0]);
+    try{
+      for(const n of steps){
+        if(!state.playing||state.token!==token)break;
+        await motionBetween(lastIdx,n.index,lastIdx/maxIdx,n.index/maxIdx,token);
+        if(!state.playing||state.token!==token)break;
+        state.progress=n.index/maxIdx;await doNodeAction(n,token);lastIdx=n.index;
+      }
+      if(state.playing&&state.token===token&&lastIdx<state.points.length-1){await motionBetween(lastIdx,state.points.length-1,lastIdx/maxIdx,1,token);}
+      if(state.playing&&state.token===token){setRunStatus('整段轨迹演示完成',1);toast('整段轨迹已模拟执行完成');await wait(1100);}
+    }catch(e){console.error('Playback error',e);toast('模拟执行出现错误');}
+    if(token===state.token){state.playing=false;$('playBtn').hidden=false;$('stopBtn').hidden=true;$('miniProgress').hidden=true;$('cornerInstruction').style.opacity='1';updateRoute();}
+  }
+  function stopPlayback(){if(!state.playing)return;state.playing=false;state.token++;$('playBtn').hidden=false;$('stopBtn').hidden=true;$('miniProgress').hidden=true;$('cornerInstruction').style.opacity='1';toast('已停止模拟动作');updateRoute();}
+  $('playBtn').addEventListener('click',play);$('stopBtn').addEventListener('click',stopPlayback);
+  function loadPreset(){
+    if(state.playing)stopPlayback();clearRoute(false);
+    const targets=[{x:727,y:347,action:'open'},{x:705,y:460,action:'pass'},{x:700,y:554,action:'pick'},{x:595,y:446,action:'pass'},{x:575,y:540,action:'release'}];
+    targets.forEach((t,i)=>{
+      if(i===0){state.points.push(point(t.x,t.y));}
+      else {const a=targets[i-1];const d=Math.hypot(t.x-a.x,t.y-a.y),segments=Math.ceil(d/7);for(let j=1;j<=segments;j++){const f=j/segments;state.points.push(point(a.x+(t.x-a.x)*f,a.y+(t.y-a.y)*f));}}
+      const n=addNode(point(t.x,t.y),state.points.length-1,i===0?'start':'hold');n.action=t.action;
+    });
+    updateRoute();closeDrawer();toast('已加载 5 个轨迹节点，可编辑或直接执行');
+  }
+  $('presetBtn').addEventListener('click',loadPreset);
+  document.querySelectorAll('[data-quick]').forEach(btn=>btn.addEventListener('click',async()=>{
+    closeDrawer();const cmd=btn.dataset.quick;
+    if(state.playing){toast('请先停止当前执行');return;}
+    if(cmd==='open'){setAperture(95);toast('模拟动作：打开夹爪');}
+    if(cmd==='close'){setAperture(4);toast('模拟动作：闭合夹爪');}
+    if(cmd==='home'){setArmTip(INITIAL);setAperture(68);toast('机械臂已回到演示初始位');}
+  }));
+  function syncPositionFromRanges(){
+    if(state.playing)return;
+    const x=Number($('posXRange').value),y=Number($('posYRange').value);
+    $('posXVal').textContent=x+'%';$('posYVal').textContent=y+'%';
+    setArmTip({x:560+x*3.8,y:240+y*3.8});
+  }
+  $('apertureRange').addEventListener('input',e=>setAperture(e.target.value));
+  $('posXRange').addEventListener('input',syncPositionFromRanges);
+  $('posYRange').addEventListener('input',syncPositionFromRanges);
+  $('holdRange').addEventListener('input',e=>{state.holdMs=Number(e.target.value);$('holdVal').textContent=state.holdMs+' ms';updateRoute();});
+  $('speedRange').addEventListener('input',e=>{state.speed=Number(e.target.value);$('speedVal').textContent=state.speed.toFixed(1)+'×';});
+  $('resetFine').addEventListener('click',()=>{
+    $('posXRange').value=50;$('posYRange').value=45;$('holdRange').value=650;$('speedRange').value=1;
+    state.holdMs=650;state.speed=1;setAperture(68);
+    $('posXVal').textContent='50%';$('posYVal').textContent='45%';$('holdVal').textContent='650 ms';$('speedVal').textContent='1.0×';
+    setArmTip(INITIAL);toast('精细控制已恢复默认值');updateRoute();
+  });
+  function openDrawer(which){
+    state.drawer=which;
+    $('quickDrawer').classList.toggle('open',which==='left');$('fineDrawer').classList.toggle('open',which==='right');
+    $('quickDrawer').setAttribute('aria-hidden',String(which!=='left'));
+    $('fineDrawer').setAttribute('aria-hidden',String(which!=='right'));
+    $('leftTab').setAttribute('aria-expanded',String(which==='left'));
+    $('rightTab').setAttribute('aria-expanded',String(which==='right'));
+    $('drawerBackdrop').classList.toggle('show',Boolean(which));
+    if(!menu.hidden)closeNodeMenu();
+  }
+  function closeDrawer(){state.drawer=null;openDrawer(null);}
+  $('leftTab').addEventListener('click',()=>state.drawer==='left'?closeDrawer():openDrawer('left'));
+  $('rightTab').addEventListener('click',()=>state.drawer==='right'?closeDrawer():openDrawer('right'));
+  $('drawerBackdrop').addEventListener('click',closeDrawer);
+  document.querySelectorAll('[data-close-drawer]').forEach(b=>b.addEventListener('click',closeDrawer));
+  for(const [id,side] of [['quickDrawer','left'],['fineDrawer','right']]){
+    const el=$(id);let down=null;
+    el.addEventListener('pointerdown',e=>{if(e.target.closest('input,button'))return;down={x:e.clientX,y:e.clientY};});
+    el.addEventListener('pointerup',e=>{if(!down)return;const diff=e.clientX-down.x;if((side==='left'&&diff< -70)||(side==='right'&&diff>70))closeDrawer();down=null;});
+  }
+  function showGuide(yes){$('guideDialog').hidden=!yes;if(yes){closeNodeMenu();closeDrawer();}}
+  $('guideBtn').addEventListener('click',()=>showGuide(true));
+  $('guideClose').addEventListener('click',()=>showGuide(false));$('guideGotIt').addEventListener('click',()=>showGuide(false));
+  $('guideDialog').addEventListener('click',e=>{if(e.target===$('guideDialog'))showGuide(false);});
+  $('cameraSwitch').addEventListener('click',async()=>{
+    if(state.cameraStream){state.cameraStream.getTracks().forEach(t=>t.stop());state.cameraStream=null;$('realCamera').srcObject=null;app.classList.remove('camera-on');$('sceneTypeText').textContent='模拟摄像头画面';$('cameraSwitch').lastElementChild.textContent='真实摄像头';toast('已切回模拟客厅场景');return;}
+    if(!navigator.mediaDevices?.getUserMedia){toast('当前浏览器或协议不支持摄像头，请通过 localhost / HTTPS 打开');return;}
+    try{
+      const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}},audio:false});
+      $('realCamera').srcObject=stream;await $('realCamera').play();state.cameraStream=stream;app.classList.add('camera-on');
+      $('sceneTypeText').textContent='真实摄像头 · 模拟机械臂叠加';$('cameraSwitch').lastElementChild.textContent='模拟场景';
+      toast('已启用真实摄像头。机械臂、目标与轨迹仍为模拟叠加，不是视觉追踪。');
+    }catch(error){toast(`无法开启摄像头：${error.name||'请检查权限'}`);}
+  });
+  window.addEventListener('resize',()=>{adaptSceneForDevice();renderNodes();if(!menu.hidden && state.selectedNode!==null)openNodeMenu(state.selectedNode);});
+  document.addEventListener('keydown',e=>{
+    if(e.key==='Escape'){if(!$('guideDialog').hidden)showGuide(false);closeNodeMenu();closeDrawer();}
+    if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();undo();}
+    if(e.key==='ArrowLeft'&&e.altKey){e.preventDefault();openDrawer('left');}
+    if(e.key==='ArrowRight'&&e.altKey){e.preventDefault();openDrawer('right');}
+  });
+  window.addEventListener('beforeunload',()=>state.cameraStream?.getTracks().forEach(t=>t.stop()));
+  // Initial view: powered, linked and ready. The connection badge is illustrative, not actual BLE.
+  setArmTip(INITIAL);setAperture(68);updateRoute();
+})();
+
+</script>
+</body>
+</html>
